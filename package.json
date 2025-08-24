@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "backend": "node scripts/start-backend.js",
+    "backend:groq": "cd backend && python start_with_groq.py",
+    "dev:full": "concurrently \"npm run backend\" \"npm run dev\"",
+    "dev:groq": "concurrently \"npm run backend:groq\" \"npm run dev\"",
+    "install:backend": "cd backend && pip install -r requirements.txt"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",
@@ -26,6 +31,7 @@
     "@types/node": "^20.19.11",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "concurrently": "^8.2.2",
     "eslint": "^8.0.0",
     "eslint-config-next": "^14.0.0",
     "typescript": "^5.0.0"

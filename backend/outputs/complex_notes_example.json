@@ -1,0 +1,102 @@
+{
+    "lecture_id": "lec_004",
+    "course": "Database Management Systems",
+    "topic": "Entity-Relationship Model",
+    "date": "2024-01-18",
+    "content": [
+        {
+            "type": "heading",
+            "text": "ENTITY-RELATIONSHIP MODEL"
+        },
+        {
+            "type": "text",
+            "text": "The ER model is a conceptual data model that views the real world as entities and relationships."
+        },
+        {
+            "type": "heading",
+            "text": "KEY COMPONENTS"
+        },
+        {
+            "type": "text",
+            "text": "1. Entity: A thing or object in the real world that is distinguishable from other objects"
+        },
+        {
+            "type": "text",
+            "text": "2. Attribute: Properties that describe an entity"
+        },
+        {
+            "type": "text",
+            "text": "3. Relationship: Association among two or more entities"
+        },
+        {
+            "type": "heading",
+            "text": "ATTRIBUTE TYPES"
+        },
+        {
+            "type": "text",
+            "text": "• Simple vs Composite attributes"
+        },
+        {
+            "type": "text",
+            "text": "• Single-valued vs Multi-valued attributes"
+        },
+        {
+            "type": "text",
+            "text": "• Stored vs Derived attributes"
+        },
+        {
+            "type": "text",
+            "text": "• Key attributes (Primary key, Candidate key)"
+        },
+        {
+            "type": "diagram",
+            "title": "ER Diagram Example",
+            "description": "Sample ER diagram showing entities, attributes, and relationships",
+            "nodes": [
+                {"id": "student", "label": "Student", "x": 150, "y": 200, "type": "entity"},
+                {"id": "course", "label": "Course", "x": 450, "y": 200, "type": "entity"},
+                {"id": "enrolls", "label": "Enrolls", "x": 300, "y": 200, "type": "relationship"},
+                {"id": "student_id", "label": "StudentID", "x": 100, "y": 150, "type": "key_attribute"},
+                {"id": "name", "label": "Name", "x": 100, "y": 250, "type": "attribute"},
+                {"id": "course_id", "label": "CourseID", "x": 500, "y": 150, "type": "key_attribute"},
+                {"id": "title", "label": "Title", "x": 500, "y": 250, "type": "attribute"},
+                {"id": "grade", "label": "Grade", "x": 300, "y": 150, "type": "attribute"}
+            ],
+            "connections": [
+                {"from": "student", "to": "enrolls", "label": "1"},
+                {"from": "enrolls", "to": "course", "label": "N"},
+                {"from": "student_id", "to": "student", "type": "attribute_connection"},
+                {"from": "name", "to": "student", "type": "attribute_connection"},
+                {"from": "course_id", "to": "course", "type": "attribute_connection"},
+                {"from": "title", "to": "course", "type": "attribute_connection"},
+                {"from": "grade", "to": "enrolls", "type": "attribute_connection"}
+            ],
+            "boxes": [
+                {
+                    "x": 50,
+                    "y": 100,
+                    "w": 500,
+                    "h": 200,
+                    "confidence": 0.94,
+                    "type": "er_diagram"
+                }
+            ]
+        },
+        {
+            "type": "heading",
+            "text": "CARDINALITY CONSTRAINTS"
+        },
+        {
+            "type": "text",
+            "text": "• One-to-One (1:1)"
+        },
+        {
+            "type": "text",
+            "text": "• One-to-Many (1:N)"
+        },
+        {
+            "type": "text",
+            "text": "• Many-to-Many (M:N)"
+        }
+    ]
+}

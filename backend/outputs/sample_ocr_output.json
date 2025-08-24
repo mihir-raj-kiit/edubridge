@@ -1,0 +1,60 @@
+{
+    "lecture_id": "lec_001",
+    "course": "Operating Systems",
+    "topic": "Process Management",
+    "date": "2024-01-15",
+    "content": [
+        {
+            "type": "heading",
+            "text": "PROCESS MANAGEMENT"
+        },
+        {
+            "type": "text",
+            "text": "A process is a program in execution. It consists of program code, current activity, program counter, and stack."
+        },
+        {
+            "type": "heading",
+            "text": "PROCESS STATES"
+        },
+        {
+            "type": "text",
+            "text": "1. New - The process is being created"
+        },
+        {
+            "type": "text",
+            "text": "2. Running - Instructions are being executed"
+        },
+        {
+            "type": "text",
+            "text": "3. Waiting - The process is waiting for some event to occur"
+        },
+        {
+            "type": "text",
+            "text": "4. Ready - The process is waiting to be assigned to a processor"
+        },
+        {
+            "type": "text",
+            "text": "5. Terminated - The process has finished execution"
+        },
+        {
+            "type": "diagram",
+            "title": "Process State Diagram",
+            "description": "Shows the transition between different process states",
+            "nodes": [
+                {"id": "new", "label": "New", "x": 100, "y": 100},
+                {"id": "ready", "label": "Ready", "x": 250, "y": 100},
+                {"id": "running", "label": "Running", "x": 400, "y": 100},
+                {"id": "waiting", "label": "Waiting", "x": 250, "y": 200},
+                {"id": "terminated", "label": "Terminated", "x": 550, "y": 100}
+            ],
+            "connections": [
+                {"from": "new", "to": "ready", "label": "admitted"},
+                {"from": "ready", "to": "running", "label": "scheduler dispatch"},
+                {"from": "running", "to": "ready", "label": "interrupt"},
+                {"from": "running", "to": "waiting", "label": "I/O or event wait"},
+                {"from": "waiting", "to": "ready", "label": "I/O or event completion"},
+                {"from": "running", "to": "terminated", "label": "exit"}
+            ]
+        }
+    ]
+}

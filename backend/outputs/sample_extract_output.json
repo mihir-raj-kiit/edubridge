@@ -1,0 +1,74 @@
+{
+    "lecture_id": "lec_003",
+    "course": "Computer Networks",
+    "topic": "TCP/IP Protocol Stack",
+    "date": "2024-01-17",
+    "content": [
+        {
+            "type": "heading",
+            "text": "TCP/IP PROTOCOL STACK"
+        },
+        {
+            "type": "text",
+            "text": "The TCP/IP protocol suite is the foundation of the Internet. It consists of four layers:"
+        },
+        {
+            "type": "text",
+            "text": "1. Application Layer - HTTP, FTP, SMTP, DNS"
+        },
+        {
+            "type": "text",
+            "text": "2. Transport Layer - TCP, UDP"
+        },
+        {
+            "type": "text",
+            "text": "3. Internet Layer - IP, ICMP, ARP"
+        },
+        {
+            "type": "text",
+            "text": "4. Network Access Layer - Ethernet, WiFi"
+        },
+        {
+            "type": "heading",
+            "text": "DATA ENCAPSULATION"
+        },
+        {
+            "type": "text",
+            "text": "Each layer adds its own header to the data received from the layer above."
+        },
+        {
+            "type": "diagram",
+            "title": "Detected Protocol Stack Diagram",
+            "description": "Auto-detected diagram showing the TCP/IP layered architecture",
+            "nodes": [
+                {"id": "app", "label": "Application Layer", "x": 200, "y": 50},
+                {"id": "transport", "label": "Transport Layer", "x": 200, "y": 120},
+                {"id": "internet", "label": "Internet Layer", "x": 200, "y": 190},
+                {"id": "network", "label": "Network Access Layer", "x": 200, "y": 260}
+            ],
+            "connections": [
+                {"from": "app", "to": "transport", "label": "data"},
+                {"from": "transport", "to": "internet", "label": "segment"},
+                {"from": "internet", "to": "network", "label": "packet"}
+            ],
+            "boxes": [
+                {
+                    "x": 100,
+                    "y": 30,
+                    "w": 200,
+                    "h": 250,
+                    "confidence": 0.92,
+                    "type": "layered_architecture"
+                },
+                {
+                    "x": 350,
+                    "y": 80,
+                    "w": 180,
+                    "h": 150,
+                    "confidence": 0.87,
+                    "type": "encapsulation_diagram"
+                }
+            ]
+        }
+    ]
+}

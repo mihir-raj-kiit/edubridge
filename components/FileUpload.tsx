@@ -9,6 +9,8 @@ import { flashcardStorage, knowledgeMapStorage, type FlashCard, type KnowledgeMa
 import { t } from '@/lib/i18n'
 import { cn, generateId } from '@/lib/utils'
 
+// For debugging API issues, use browser console: apiDebug.runAllTests()
+
 interface FileUploadProps {
   className?: string
   onFlashcardsGenerated?: (flashcards: FlashCard[]) => void
@@ -90,14 +92,24 @@ export default function FileUpload({ className, onFlashcardsGenerated, onKnowled
     try {
       const response = await ocrAPI.processImage(uploadedFile)
 
-      // Convert API response to FlashCard format
-      const flashcards: FlashCard[] = response.flashcards.map(card => ({
+      // Convert API response to FlashCard format with Groq enhancements
+      const flashcards: FlashCard[] = response.flashcards.map((card, index) => ({
         id: generateId(),
         question: card.question,
         answer: card.answer,
         subject: 'General',
-        createdAt: new Date().toISOString()
-      }))
+        createdAt: new Date().toISOString(),
+        // Add Groq-specific metadata
+        ...(card.category && { category: card.category }),
+        ...((response as any).groq_enhanced && { groq_enhanced: true }),
+        ...((response as any).summary && index === 0 && {
+          summary: (response as any).summary,
+          difficulty_level: (response as any).difficulty_level,
+          estimated_study_time: (response as any).estimated_study_time,
+          key_concepts: (response as any).key_concepts,
+          study_questions: (response as any).study_questions
+        })
+      })) as FlashCard[]
 
       // Save flashcards to local storage
       flashcardStorage.addMany(flashcards)
@@ -108,7 +120,11 @@ export default function FileUpload({ className, onFlashcardsGenerated, onKnowled
           id: generateId(),
           graphs: response.knowledge_map.graphs,
           subject: flashcards.length > 0 ? (flashcards[0].subject || 'General') : 'General',
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          // Add Groq-specific metadata
+          ...((response as any).groq_enhanced && { groq_enhanced: true }),
+          ...((response as any).summary && { summary: (response as any).summary }),
+          ...((response as any).key_concepts && { key_concepts: (response as any).key_concepts })
         }
 
         // Save knowledge map to local storage
@@ -119,7 +135,10 @@ export default function FileUpload({ className, onFlashcardsGenerated, onKnowled
       }
 
       setStatus('success')
-      setStatusMessage(`Generated ${flashcards.length} flashcards${response.knowledge_map ? ' and knowledge map' : ''} successfully!`)
+      const mode = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' ? ' (demo mode)' : ''
+      const groqEnhanced = (response as any).groq_enhanced ? ' ✨ AI-Enhanced' : ''
+      const extraInfo = (response as any).summary ? ` • ${(response as any).difficulty_level} level • ${(response as any).estimated_study_time}` : ''
+      setStatusMessage(`Generated ${flashcards.length} flashcards${response.knowledge_map ? ' and knowledge map' : ''} successfully!${groqEnhanced}${mode}${extraInfo}`)
 
       // Notify parent component about flashcards
       onFlashcardsGenerated?.(flashcards)
@@ -271,6 +290,16 @@ export default function FileUpload({ className, onFlashcardsGenerated, onKnowled
             <li>Include diagrams or key concepts you want to study</li>
             <li>Handwriting should be legible for better OCR accuracy</li>
           </ul>
+          {process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' && (
+            <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 rounded text-xs">
+              💡 <strong>Demo Mode:</strong> Currently generating sample flashcards. To enable real OCR + AI processing, configure the backend in your environment settings.
+            </div>
+          )}
+          {process.env.NEXT_PUBLIC_USE_MOCK_DATA !== 'true' && (
+            <div className="mt-2 p-2 bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 rounded text-xs">
+              ✨ <strong>AI-Enhanced Mode:</strong> Your images will be processed with OCR + Computer Vision, then enhanced with Groq AI to generate intelligent flashcards, summaries, and study materials.
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

@@ -1,104 +1,128 @@
 """
-EduBridge Backend - Main FastAPI Application
+FastAPI Backend for OCR and Diagram Detection
 
-This is the main entry point for the EduBridge backend service that provides
-OCR processing, diagram detection, and AI-powered learning features.
+A comprehensive backend service for processing images to extract text (OCR)
+and detect diagrams/flowcharts with structured JSON output.
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import uvicorn
-import os
-from pathlib import Path
 
+from app.config import settings
 from app.api.router import api_router
-from app.core.config import get_settings
-from app.core.logging import setup_logging
+from app.utils.file_handler import ensure_directories
 
-# Get application settings
-settings = get_settings()
-
-# Setup logging
-setup_logging()
-
-
+# Lifespan event handler
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan events"""
+    """
+    Lifespan event handler for startup and shutdown
+    """
     # Startup
-    print("🚀 EduBridge Backend starting up...")
-    
-    # Create necessary directories
-    Path("uploads").mkdir(exist_ok=True)
-    Path("outputs").mkdir(exist_ok=True)
-    Path("temp").mkdir(exist_ok=True)
-    
-    print("📁 Created necessary directories")
-    print(f"🌍 Environment: {settings.ENVIRONMENT}")
-    print(f"🔧 Debug mode: {settings.DEBUG}")
+    print("🚀 Starting OCR & Diagram Detection API...")
+    ensure_directories()
+    print(f"📁 Upload directory: {settings.upload_dir}")
+    print(f"📁 Output directory: {settings.output_dir}")
+    print(f"🔧 Debug mode: {settings.debug}")
     
     yield
     
     # Shutdown
-    print("🛑 EduBridge Backend shutting down...")
-
+    print("🛑 Shutting down OCR & Diagram Detection API...")
 
 # Create FastAPI application
 app = FastAPI(
-    title="EduBridge Backend API",
-    description="AI-powered OCR and learning platform backend service",
+    title="OCR & Diagram Detection API",
+    description="A FastAPI backend for extracting text and detecting diagrams from images",
     version="1.0.0",
-    docs_url="/docs" if settings.DEBUG else None,
-    redoc_url="/redoc" if settings.DEBUG else None,
+    docs_url="/docs" if settings.debug else None,
+    redoc_url="/redoc" if settings.debug else None,
     lifespan=lifespan
 )
 
-# CORS middleware for frontend integration
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],  # Frontend origins
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 
 # Include API routes
-app.include_router(api_router, prefix="/api/v1")
+app.include_router(api_router)
 
-# Mount static files for uploads (if needed)
-if os.path.exists("uploads"):
-    app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+# Global exception handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    """
+    Global exception handler for unhandled errors
+    """
+    if settings.debug:
+        # In debug mode, show detailed error information
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Internal server error",
+                "detail": str(exc),
+                "type": type(exc).__name__
+            }
+        )
+    else:
+        # In production mode, show generic error message
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Internal server error",
+                "detail": "An unexpected error occurred"
+            }
+        )
 
-
+# Root endpoint
 @app.get("/")
 async def root():
-    """Root endpoint - health check"""
-    return JSONResponse({
-        "message": "EduBridge Backend API",
+    """
+    Root endpoint with API information
+    """
+    return {
+        "message": "OCR & Diagram Detection API",
         "version": "1.0.0",
-        "status": "healthy",
-        "environment": settings.ENVIRONMENT
-    })
+        "status": "operational",
+        "docs": "/docs",
+        "health": "/health",
+        "endpoints": {
+            "ocr": "/api/ocr",
+            "diagram_detection": "/api/diagram-detect",
+            "combined_extraction": "/api/extract"
+        }
+    }
 
+# Legacy endpoints for backward compatibility
+@app.post("/diagram-detect")
+async def legacy_diagram_detect(file):
+    """Legacy endpoint - redirects to new API structure"""
+    return HTTPException(
+        status_code=301, 
+        detail="This endpoint has moved to /api/diagram-detect"
+    )
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return JSONResponse({
-        "status": "healthy",
-        "version": "1.0.0",
-        "environment": settings.ENVIRONMENT
-    })
+@app.post("/extract")
+async def legacy_extract(file):
+    """Legacy endpoint - redirects to new API structure"""
+    return HTTPException(
+        status_code=301, 
+        detail="This endpoint has moved to /api/extract"
+    )
 
-
+# Development server
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",
-        host=settings.HOST,
-        port=settings.PORT,
-        reload=settings.DEBUG,
-        log_level="info"
+        host=settings.api_host,
+        port=settings.api_port,
+        reload=settings.api_reload,
+        log_level="debug" if settings.debug else "info"
     )

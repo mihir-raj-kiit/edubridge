@@ -10,14 +10,33 @@ class APIError extends Error {
   }
 }
 
+// Configuration - SKIP health check by default to avoid fetch errors
+const ENABLE_BACKEND_CHECK = process.env.NEXT_PUBLIC_ENABLE_BACKEND_CHECK === 'true'
+const USE_MOCK_DATA = process.env.NEXT_PUBLIC_USE_MOCK_DATA !== 'false' // Default to mock data
+
 // Generic fetch wrapper with error handling
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  // In development mode, always use mock data to avoid fetch issues
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`Development mode: Using mock data for ${endpoint}`)
+  // Default to mock data unless explicitly configured otherwise
+  if (USE_MOCK_DATA) {
+    console.log(`🎭 Using mock data for ${endpoint} (default behavior)`)
+    return Promise.resolve(getMockData(endpoint) as T)
+  }
+
+  // Only check backend if explicitly enabled
+  if (ENABLE_BACKEND_CHECK) {
+    console.log(`🔍 Checking backend availability for ${endpoint}...`)
+    const isBackendAvailable = await checkBackendHealth()
+
+    if (!isBackendAvailable) {
+      console.log(`❌ Backend not available, using mock data for ${endpoint}`)
+      return Promise.resolve(getMockData(endpoint) as T)
+    }
+    console.log(`✅ Backend available, making real API call to ${endpoint}`)
+  } else {
+    console.log(`⚡ Backend check disabled, using mock data for ${endpoint}`)
     return Promise.resolve(getMockData(endpoint) as T)
   }
 
@@ -39,31 +58,75 @@ async function apiRequest<T>(
 
     // Add timeout for fetch requests to prevent hanging
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 second timeout
+    const timeoutId = setTimeout(() => {
+      controller.abort()
+    }, 5000) // 5 second timeout
 
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...defaultHeaders,
-        ...options.headers,
-      },
-      signal: controller.signal,
-    })
+    let response: Response
 
-    clearTimeout(timeoutId)
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers: {
+          ...defaultHeaders,
+          ...options.headers,
+        },
+        signal: controller.signal,
+      })
 
-    if (!response.ok) {
-      throw new APIError(response.status, `API Error: ${response.statusText}`)
+      clearTimeout(timeoutId)
+
+      if (!response.ok) {
+        throw new APIError(response.status, `API Error: ${response.statusText}`)
+      }
+
+      return await response.json()
+
+    } catch (fetchError) {
+      clearTimeout(timeoutId)
+
+      // Handle different types of errors
+      if (fetchError instanceof Error) {
+        if (fetchError.name === 'AbortError') {
+          console.warn(`Request to ${endpoint} timed out after 5 seconds`)
+        } else if (fetchError.message.includes('fetch')) {
+          console.warn(`Network error for ${endpoint}: ${fetchError.message}`)
+        } else {
+          console.warn(`API call failed for ${endpoint}: ${fetchError.message}`)
+        }
+      } else {
+        console.warn(`Unknown error for ${endpoint}:`, fetchError)
+      }
+
+      throw fetchError // Re-throw to be caught by outer catch
     }
 
-    return await response.json()
   } catch (error) {
-    // Log the error for debugging but don't throw it
-    console.warn(`API call failed for ${endpoint}:`, error instanceof Error ? error.message : error)
+    // Final fallback - always return mock data for any error
     console.warn(`Falling back to mock data for ${endpoint}`)
-
-    // Always return mock data when any error occurs (network, CORS, etc.)
     return getMockData(endpoint) as T
+  }
+}
+
+// Check if backend is available
+async function checkBackendHealth(): Promise<boolean> {
+  try {
+    // Simple fetch with built-in timeout using Promise.race
+    const fetchPromise = fetch(`${API_BASE_URL}/health`, {
+      method: 'GET',
+      cache: 'no-cache'
+    })
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Health check timeout')), 2000)
+    })
+
+    const response = await Promise.race([fetchPromise, timeoutPromise])
+    return response.ok
+
+  } catch (error) {
+    // Backend not available - this is expected during development
+    return false
   }
 }
 
@@ -268,14 +331,119 @@ export const ocrAPI = {
     flashcards: Array<{ question: string; answer: string }>
     knowledge_map: KnowledgeMapData
   }> => {
-    const formData = new FormData()
-    formData.append('image', imageFile)
+    console.log('🖼️ Processing image:', imageFile.name, 'Size:', Math.round(imageFile.size / 1024), 'KB')
 
-    return apiRequest('/api/ocr', {
-      method: 'POST',
-      headers: {}, // Remove Content-Type to let browser set it for FormData
-      body: formData
-    })
+    // Check configuration first to avoid any network calls
+    if (USE_MOCK_DATA) {
+      console.log('🎭 Using mock data (configured), skipping backend entirely')
+      return getMockData('/api/ocr') as any
+    }
+
+    try {
+      const formData = new FormData()
+      formData.append('file', imageFile) // Backend expects 'file', not 'image'
+
+      // Try the backend API (apiRequest handles fallback automatically)
+      const response = await apiRequest('/api/ocr', {
+        method: 'POST',
+        body: formData
+      })
+
+      // Transform backend response to expected frontend format
+      if (response && typeof response === 'object' && 'content' in response) {
+        console.log('✅ Got backend response, transforming...')
+        return transformBackendResponse(response as any)
+      }
+
+      console.log('📝 Using response as-is (likely mock data)')
+      return response as any
+
+    } catch (error) {
+      console.warn('❌ OCR processing failed, using mock data:', error)
+      return getMockData('/api/ocr') as any
+    }
+  }
+}
+
+// Transform backend response to frontend format (supports both OCR-only and Groq-enhanced)
+function transformBackendResponse(backendResponse: any): {
+  flashcards: Array<{ question: string; answer: string }>
+  knowledge_map: KnowledgeMapData
+  summary?: string
+  key_concepts?: string[]
+  study_questions?: string[]
+  difficulty_level?: string
+  estimated_study_time?: string
+  groq_enhanced?: boolean
+} {
+  // Check if response is Groq-enhanced
+  if (backendResponse.groq_enhanced && backendResponse.flashcards) {
+    console.log('🤖 Processing Groq-enhanced response')
+
+    // Transform Groq-enhanced response
+    const result = {
+      flashcards: backendResponse.flashcards.map((card: any) => ({
+        question: card.question,
+        answer: card.answer
+      })),
+      knowledge_map: {
+        graphs: backendResponse.knowledge_map?.nodes ? [
+          {
+            nodes: backendResponse.knowledge_map.nodes.map((node: any) => ({
+              id: node.id,
+              label: node.label
+            })),
+            edges: backendResponse.knowledge_map.edges?.map((edge: any) => ({
+              from: edge.from,
+              to: edge.to,
+              label: edge.label
+            })) || []
+          }
+        ] : []
+      },
+      summary: backendResponse.summary,
+      key_concepts: backendResponse.key_concepts,
+      study_questions: backendResponse.study_questions,
+      difficulty_level: backendResponse.difficulty_level,
+      estimated_study_time: backendResponse.estimated_study_time,
+      groq_enhanced: true
+    }
+
+    return result
+  }
+
+  // Fallback: Standard OCR response transformation
+  console.log('📄 Processing standard OCR response')
+  const content = backendResponse.content || []
+
+  // Extract text content for flashcard generation
+  const textItems = content.filter((item: any) => item.type === 'text' || item.type === 'heading')
+
+  // Simple flashcard generation from text content
+  const flashcards = textItems.slice(0, 5).map((item: any, index: number) => ({
+    question: `What does this note section cover? (Item ${index + 1})`,
+    answer: item.text || 'No text extracted'
+  }))
+
+  // Extract diagram information for knowledge map
+  const diagrams = content.filter((item: any) => item.type === 'diagram')
+
+  const knowledge_map: KnowledgeMapData = {
+    graphs: diagrams.map((diagram: any, index: number) => ({
+      nodes: [
+        { id: `topic_${index}`, label: backendResponse.topic || 'Main Topic' },
+        { id: `content_${index}`, label: diagram.title || 'Diagram Content' }
+      ],
+      edges: [
+        { from: `topic_${index}`, to: `content_${index}` }
+      ]
+    }))
+  }
+
+  return {
+    flashcards,
+    knowledge_map,
+    groq_enhanced: false
   }
 }
 

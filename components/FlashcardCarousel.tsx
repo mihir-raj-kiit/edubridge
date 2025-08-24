@@ -126,15 +126,33 @@ export default function FlashcardCarousel({
             onClick={flipCard}
           >
             <div className="p-6 h-full flex flex-col justify-center">
-              {/* Subject Badge */}
-              {currentCard.subject && (
-                <Badge 
-                  variant="outline" 
-                  className="self-start mb-4 text-xs"
-                >
-                  {currentCard.subject}
-                </Badge>
-              )}
+              {/* Subject and Category Badges */}
+              <div className="self-start mb-4 flex gap-2 flex-wrap">
+                {currentCard.subject && (
+                  <Badge
+                    variant="outline"
+                    className="text-xs"
+                  >
+                    {currentCard.subject}
+                  </Badge>
+                )}
+                {(currentCard as any).category && (
+                  <Badge
+                    variant="secondary"
+                    className="text-xs"
+                  >
+                    {(currentCard as any).category}
+                  </Badge>
+                )}
+                {(currentCard as any).groq_enhanced && (
+                  <Badge
+                    variant="default"
+                    className="text-xs bg-gradient-to-r from-purple-500 to-pink-500"
+                  >
+                    ✨ AI Enhanced
+                  </Badge>
+                )}
+              </div>
 
               {/* Card Content */}
               <div className="flex-1 flex items-center justify-center text-center">
@@ -222,15 +240,40 @@ export default function FlashcardCarousel({
           </div>
         )}
 
-        {/* Study Tips */}
-        <div className="text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg">
-          <div className="font-medium mb-1">Study Tips:</div>
-          <ul className="space-y-1 ml-4 list-disc">
-            <li>Try to answer before flipping the card</li>
-            <li>Review cards you find difficult more often</li>
-            <li>Use spaced repetition for better retention</li>
-          </ul>
-        </div>
+        {/* Enhanced Study Information or Tips */}
+        {((flashcards[0] as any)?.summary || (flashcards[0] as any)?.difficulty_level) ? (
+          <div className="text-xs text-muted-foreground bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-3 rounded-lg border">
+            <div className="font-medium mb-2 flex items-center gap-1">
+              ✨ AI Study Insights:
+            </div>
+            {(flashcards[0] as any)?.summary && (
+              <div className="mb-2">
+                <strong>Summary:</strong> {(flashcards[0] as any).summary}
+              </div>
+            )}
+            <div className="flex gap-4 text-xs">
+              {(flashcards[0] as any)?.difficulty_level && (
+                <div>
+                  <strong>Level:</strong> {(flashcards[0] as any).difficulty_level}
+                </div>
+              )}
+              {(flashcards[0] as any)?.estimated_study_time && (
+                <div>
+                  <strong>Study time:</strong> {(flashcards[0] as any).estimated_study_time}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg">
+            <div className="font-medium mb-1">Study Tips:</div>
+            <ul className="space-y-1 ml-4 list-disc">
+              <li>Try to answer before flipping the card</li>
+              <li>Review cards you find difficult more often</li>
+              <li>Use spaced repetition for better retention</li>
+            </ul>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

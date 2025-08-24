@@ -1,216 +1,124 @@
-"""
-Image Processing Utilities
-
-Common image processing functions used across the application.
-"""
-
-from typing import Tuple, Optional
-from pathlib import Path
-import shutil
-import uuid
-from PIL import Image, ImageEnhance, ImageFilter
 import cv2
 import numpy as np
-
-from app.core.logging import get_logger
-from app.core.config import get_settings
-
-logger = get_logger(__name__)
-settings = get_settings()
-
+from typing import Tuple, Optional
+from app.config import settings
 
 class ImageProcessor:
-    """Utility class for image processing operations"""
+    """Image processing utilities for OCR and diagram detection"""
     
-    @staticmethod
-    def save_uploaded_file(uploaded_file, upload_dir: str = None) -> str:
-        """
-        Save uploaded file to disk
-        
-        Args:
-            uploaded_file: FastAPI UploadFile object
-            upload_dir: Directory to save file (defaults to settings.UPLOAD_DIR)
-            
-        Returns:
-            Path to saved file
-        """
-        if upload_dir is None:
-            upload_dir = settings.UPLOAD_DIR
-        
-        # Create upload directory if it doesn't exist
-        Path(upload_dir).mkdir(parents=True, exist_ok=True)
-        
-        # Generate unique filename
-        file_extension = Path(uploaded_file.filename).suffix
-        unique_filename = f"{uuid.uuid4()}{file_extension}"
-        file_path = Path(upload_dir) / unique_filename
-        
-        # Save file
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(uploaded_file.file, buffer)
-        
-        logger.info(f"Saved uploaded file to: {file_path}")
-        return str(file_path)
+    def __init__(self):
+        self.diagram_threshold = settings.diagram_detection_threshold
+        self.min_contour_area = settings.min_contour_area
     
-    @staticmethod
-    def preprocess_image(image_path: str, output_path: str = None) -> str:
+    def preprocess_for_ocr(self, image: np.ndarray, scale_factor: float = 2.0) -> np.ndarray:
         """
         Preprocess image for better OCR results
         
         Args:
-            image_path: Path to input image
-            output_path: Path for processed image (optional)
+            image: Input image
+            scale_factor: Upscaling factor for thin handwriting
             
         Returns:
-            Path to processed image
+            Preprocessed image
         """
-        try:
-            if output_path is None:
-                output_path = str(Path(settings.TEMP_DIR) / f"processed_{Path(image_path).name}")
-            
-            # Ensure temp directory exists
-            Path(settings.TEMP_DIR).mkdir(parents=True, exist_ok=True)
-            
-            # Open image
-            image = Image.open(image_path)
-            
-            # Convert to RGB if necessary
-            if image.mode != 'RGB':
-                image = image.convert('RGB')
-            
-            # Enhance image for better OCR
-            image = ImageProcessor._enhance_for_ocr(image)
-            
-            # Save processed image
-            image.save(output_path, quality=95)
-            
-            logger.info(f"Preprocessed image saved to: {output_path}")
-            return output_path
-            
-        except Exception as e:
-            logger.error(f"Error preprocessing image {image_path}: {str(e)}")
-            raise
+        # Upscale for thin handwriting
+        height, width = image.shape[:2]
+        new_width = int(width * scale_factor)
+        new_height = int(height * scale_factor)
+        image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
+        
+        # Convert to grayscale if needed
+        if len(image.shape) == 3:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = image.copy()
+        
+        # Adaptive thresholding for variable backgrounds
+        thresh = cv2.adaptiveThreshold(
+            gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 35, 11
+        )
+        
+        # Dilation to connect broken handwriting
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+        thresh = cv2.dilate(thresh, kernel, iterations=1)
+        
+        return thresh
     
-    @staticmethod
-    def _enhance_for_ocr(image: Image.Image) -> Image.Image:
+    def preprocess_for_diagram_detection(self, image: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Apply enhancements to improve OCR accuracy
+        Preprocess image for diagram detection
         
         Args:
-            image: PIL Image object
+            image: Input image
             
         Returns:
-            Enhanced PIL Image object
+            Tuple of (processed_image, threshold_image)
         """
-        # Increase contrast
-        enhancer = ImageEnhance.Contrast(image)
-        image = enhancer.enhance(1.2)
+        # Convert to grayscale if needed
+        if len(image.shape) == 3:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = image.copy()
         
-        # Increase sharpness
-        enhancer = ImageEnhance.Sharpness(image)
-        image = enhancer.enhance(1.1)
+        # Apply Gaussian blur
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
         
-        # Apply slight denoising
-        image = image.filter(ImageFilter.MedianFilter(size=3))
+        # Apply threshold
+        _, thresh = cv2.threshold(blurred, self.diagram_threshold, 255, cv2.THRESH_BINARY_INV)
         
-        return image
+        return gray, thresh
     
-    @staticmethod
-    def resize_image(image_path: str, max_width: int = 1920, max_height: int = 1080) -> str:
+    def enhance_image_quality(self, image: np.ndarray) -> np.ndarray:
         """
-        Resize image while maintaining aspect ratio
+        Enhance image quality for better processing
         
         Args:
-            image_path: Path to input image
-            max_width: Maximum width
-            max_height: Maximum height
+            image: Input image
             
         Returns:
-            Path to resized image
+            Enhanced image
         """
-        try:
-            image = Image.open(image_path)
-            
-            # Calculate new size maintaining aspect ratio
-            image.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
-            
-            # Save resized image
-            resized_path = str(Path(settings.TEMP_DIR) / f"resized_{Path(image_path).name}")
-            image.save(resized_path, quality=95)
-            
-            logger.info(f"Resized image saved to: {resized_path}")
-            return resized_path
-            
-        except Exception as e:
-            logger.error(f"Error resizing image {image_path}: {str(e)}")
-            raise
+        # Denoise
+        if len(image.shape) == 3:
+            denoised = cv2.fastNlMeansDenoisingColored(image, None, 10, 10, 7, 21)
+        else:
+            denoised = cv2.fastNlMeansDenoising(image, None, 10, 7, 21)
+        
+        # Enhance contrast
+        lab = cv2.cvtColor(denoised, cv2.COLOR_BGR2LAB) if len(denoised.shape) == 3 else denoised
+        if len(denoised.shape) == 3:
+            l, a, b = cv2.split(lab)
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            l = clahe.apply(l)
+            enhanced = cv2.merge([l, a, b])
+            enhanced = cv2.cvtColor(enhanced, cv2.COLOR_LAB2BGR)
+        else:
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            enhanced = clahe.apply(denoised)
+        
+        return enhanced
     
-    @staticmethod
-    def get_image_info(image_path: str) -> dict:
+    def validate_image(self, image_path: str) -> Optional[np.ndarray]:
         """
-        Get basic information about an image
+        Validate and load image
         
         Args:
             image_path: Path to image file
             
         Returns:
-            Dictionary with image information
+            Loaded image or None if invalid
         """
         try:
-            image = Image.open(image_path)
-            
-            return {
-                "width": image.width,
-                "height": image.height,
-                "mode": image.mode,
-                "format": image.format,
-                "size_bytes": Path(image_path).stat().st_size
-            }
-            
-        except Exception as e:
-            logger.error(f"Error getting image info for {image_path}: {str(e)}")
-            raise
-    
-    @staticmethod
-    def convert_to_opencv(image_path: str) -> np.ndarray:
-        """
-        Convert image to OpenCV format
-        
-        Args:
-            image_path: Path to image file
-            
-        Returns:
-            OpenCV image array
-        """
-        try:
-            # Read image with OpenCV
             image = cv2.imread(image_path)
-            
             if image is None:
-                raise ValueError(f"Could not read image: {image_path}")
+                return None
+            
+            # Check image dimensions
+            height, width = image.shape[:2]
+            if height < 100 or width < 100:
+                return None
             
             return image
             
-        except Exception as e:
-            logger.error(f"Error converting image to OpenCV format: {str(e)}")
-            raise
-    
-    @staticmethod
-    def cleanup_temp_files(file_paths: list):
-        """
-        Clean up temporary files
-        
-        Args:
-            file_paths: List of file paths to delete
-        """
-        for file_path in file_paths:
-            try:
-                if Path(file_path).exists():
-                    Path(file_path).unlink()
-                    logger.debug(f"Deleted temporary file: {file_path}")
-            except Exception as e:
-                logger.warning(f"Could not delete temporary file {file_path}: {str(e)}")
-
-
-# Global image processor instance
-image_processor = ImageProcessor()
+        except Exception:
+            return None

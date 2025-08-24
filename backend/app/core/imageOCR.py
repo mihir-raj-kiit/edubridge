@@ -1,168 +1,244 @@
-"""
-Image OCR Processing Module
-
-This module handles OCR processing of uploaded images to extract text
-and generate flashcards. This is where your existing imageOCR.py 
-functionality should be integrated.
-"""
-
-from typing import List, Dict, Any
-from pathlib import Path
+import cv2
+import easyocr
 import json
-from PIL import Image
-import io
+import os
+from datetime import datetime
+from spellchecker import SpellChecker
+from typing import Optional, Dict, Any, List
+from app.config import settings
+from app.core.image_processor import ImageProcessor
 
-from app.core.logging import get_logger
-from app.core.config import get_settings
-from app.models.responses import FlashCard
+# Initialize OCR reader
+try:
+    reader = easyocr.Reader(settings.ocr_languages, recog_network='english_g2')
+except Exception:
+    reader = easyocr.Reader(settings.ocr_languages)
 
-logger = get_logger(__name__)
-settings = get_settings()
+# Initialize spell checker
+spell = SpellChecker()
 
+# Initialize image processor
+processor = ImageProcessor()
 
-class ImageOCRProcessor:
-    """OCR processor for extracting text from images"""
+def correct_spelling(text: str) -> str:
+    """
+    Correct spelling errors in extracted text
     
-    def __init__(self):
-        self.confidence_threshold = settings.OCR_CONFIDENCE_THRESHOLD
-        self.language = settings.OCR_LANGUAGE
-        logger.info("OCR Processor initialized")
-    
-    def process_image(self, image_path: str) -> List[FlashCard]:
-        """
-        Process an image and extract flashcards
+    Args:
+        text: Input text with potential spelling errors
         
-        Args:
-            image_path: Path to the image file
-            
-        Returns:
-            List of FlashCard objects
-            
-        Note:
-            This is a placeholder - integrate your existing imageOCR.py logic here
-        """
+    Returns:
+        Text with corrected spelling
+    """
+    if not settings.enable_spell_correction:
+        return text
+    
+    words = text.split()
+    corrected = []
+    
+    for word in words:
+        # Only correct alphabetic words that aren't all uppercase
+        if word.isalpha() and not word.isupper():
+            fixed = spell.correction(word)
+            corrected.append(fixed if fixed else word)
+        else:
+            corrected.append(word)
+    
+    return " ".join(corrected)
+
+def extract_text_with_confidence(image_path: str) -> List[Dict[str, Any]]:
+    """
+    Extract text with confidence scores
+    
+    Args:
+        image_path: Path to the image file
+        
+    Returns:
+        List of extracted text with confidence scores
+    """
+    # Validate and load image
+    image = processor.validate_image(image_path)
+    if image is None:
+        return []
+    
+    # Enhance image quality
+    enhanced = processor.enhance_image_quality(image)
+    
+    # Preprocess for OCR
+    processed = processor.preprocess_for_ocr(enhanced)
+    
+    # Run OCR with confidence scores
+    try:
+        results = reader.readtext(
+            processed, 
+            detail=True,  # Get confidence scores
+            paragraph=True,
+            contrast_ths=0.1, 
+            adjust_contrast=0.7, 
+            decoder='greedy'
+        )
+    except TypeError:
+        # Fallback for older EasyOCR versions
+        results = reader.readtext(processed, detail=True, paragraph=True)
+    
+    # Process results
+    extracted_texts = []
+    for bbox, text, confidence in results:
+        if confidence >= settings.ocr_confidence_threshold:
+            corrected_text = correct_spelling(text.strip())
+            if corrected_text:
+                extracted_texts.append({
+                    "text": corrected_text,
+                    "confidence": float(confidence),
+                    "bbox": bbox
+                })
+    
+    return extracted_texts
+
+def classify_content_type(text: str) -> str:
+    """
+    Classify extracted text as heading or regular text
+    
+    Args:
+        text: Extracted text
+        
+    Returns:
+        Content type: 'heading' or 'text'
+    """
+    # Simple heuristic: if text is mostly uppercase, treat as heading
+    if text.isupper() and len(text) > 3:
+        return "heading"
+    
+    # Check for heading patterns
+    heading_indicators = ["CHAPTER", "SECTION", "PART", "UNIT", "LESSON"]
+    text_upper = text.upper()
+    
+    if any(indicator in text_upper for indicator in heading_indicators):
+        return "heading"
+    
+    return "text"
+
+def process_image(image_path: str, output_file: Optional[str] = "notes.json") -> Optional[Dict[str, Any]]:
+    """
+    Process image and extract structured notes
+    
+    Args:
+        image_path: Path to the image file
+        output_file: Output JSON file path (None to skip saving)
+        
+    Returns:
+        Structured notes data or None if processing fails
+    """
+    if not os.path.exists(image_path):
+        print(f"❌ Image not found: {image_path}")
+        return None
+    
+    # Extract text with confidence
+    extracted_texts = extract_text_with_confidence(image_path)
+    
+    if not extracted_texts:
+        print("⚠️ No text detected in the image")
+        return None
+    
+    print("Detected text blocks:")
+    for item in extracted_texts:
+        print(f"- {item['text']} (confidence: {item['confidence']:.2f})")
+    
+    # Create structured notes
+    notes_data = {
+        "lecture_id": "lec_001",
+        "course": "Operating Systems",
+        "topic": "Process Management",
+        "date": datetime.today().strftime("%Y-%m-%d"),
+        "content": []
+    }
+    
+    # Process extracted texts
+    for item in extracted_texts:
+        text = item["text"]
+        content_type = classify_content_type(text)
+        
+        notes_data["content"].append({
+            "type": content_type,
+            "text": text,
+            "confidence": item["confidence"]
+        })
+    
+    # Save to file if output_file is specified
+    if output_file:
         try:
-            logger.info(f"Processing image: {image_path}")
-            
-            # TODO: Replace this with your actual OCR implementation
-            # Your imageOCR.py logic should go here
-            
-            # For now, return mock data
-            flashcards = self._generate_mock_flashcards()
-            
-            logger.info(f"Generated {len(flashcards)} flashcards from image")
-            return flashcards
-            
+            with open(output_file, "w", encoding="utf-8") as f:
+                json.dump(notes_data, f, indent=4, ensure_ascii=False)
+            print(f"✅ Structured notes saved to {output_file}")
         except Exception as e:
-            logger.error(f"Error processing image {image_path}: {str(e)}")
-            raise
+            print(f"❌ Failed to save output file: {e}")
     
-    def _generate_mock_flashcards(self) -> List[FlashCard]:
-        """
-        Generate mock flashcards for testing
-        
-        TODO: Remove this method once your OCR implementation is integrated
-        """
-        return [
-            FlashCard(
-                question="What is the main topic discussed in this image?",
-                answer="Based on the extracted text, this appears to be about educational content that can be converted into study materials."
-            ),
-            FlashCard(
-                question="What are the key concepts identified?",
-                answer="The OCR system has identified several important terms and concepts that can be used for learning."
-            ),
-            FlashCard(
-                question="How can this content be used for studying?",
-                answer="This content can be converted into flashcards and knowledge maps for effective learning and revision."
-            )
-        ]
+    return notes_data
+
+def process_image_advanced(
+    image_path: str, 
+    lecture_id: str = "lec_001",
+    course: str = "Operating Systems",
+    topic: str = "Process Management",
+    output_file: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
+    """
+    Advanced image processing with custom metadata
     
-    def extract_text_regions(self, image_path: str) -> List[Dict[str, Any]]:
-        """
-        Extract text regions from image with confidence scores
+    Args:
+        image_path: Path to the image file
+        lecture_id: Custom lecture identifier
+        course: Course name
+        topic: Topic name
+        output_file: Output JSON file path (None to skip saving)
         
-        Args:
-            image_path: Path to the image file
-            
-        Returns:
-            List of text regions with metadata
-            
-        Note:
-            Integrate your OCR text extraction logic here
-        """
+    Returns:
+        Structured notes data or None if processing fails
+    """
+    if not os.path.exists(image_path):
+        return None
+    
+    # Extract text with confidence
+    extracted_texts = extract_text_with_confidence(image_path)
+    
+    if not extracted_texts:
+        return None
+    
+    # Create structured notes with custom metadata
+    notes_data = {
+        "lecture_id": lecture_id,
+        "course": course,
+        "topic": topic,
+        "date": datetime.today().strftime("%Y-%m-%d"),
+        "content": []
+    }
+    
+    # Process extracted texts
+    for item in extracted_texts:
+        text = item["text"]
+        content_type = classify_content_type(text)
+        
+        notes_data["content"].append({
+            "type": content_type,
+            "text": text,
+            "confidence": item["confidence"]
+        })
+    
+    # Save to file if output_file is specified
+    if output_file:
         try:
-            # TODO: Implement your OCR text extraction
-            # This should return structured text data with positions and confidence
-            
-            return [
-                {
-                    "text": "Sample extracted text",
-                    "confidence": 0.95,
-                    "bbox": [100, 100, 300, 150],
-                    "region_type": "paragraph"
-                }
-            ]
-            
+            output_path = os.path.join(settings.output_dir, output_file)
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(notes_data, f, indent=4, ensure_ascii=False)
         except Exception as e:
-            logger.error(f"Error extracting text from {image_path}: {str(e)}")
-            raise
+            print(f"❌ Failed to save output file: {e}")
     
-    def validate_image(self, image_file) -> bool:
-        """
-        Validate uploaded image file
-        
-        Args:
-            image_file: Uploaded image file
-            
-        Returns:
-            True if valid, False otherwise
-        """
-        try:
-            # Check file size
-            if hasattr(image_file, 'size') and image_file.size > settings.MAX_FILE_SIZE:
-                logger.warning(f"Image file too large: {image_file.size} bytes")
-                return False
-            
-            # Check image format
-            if hasattr(image_file, 'content_type'):
-                if image_file.content_type not in settings.ALLOWED_FILE_TYPES:
-                    logger.warning(f"Unsupported file type: {image_file.content_type}")
-                    return False
-            
-            # Try to open image with PIL
-            try:
-                if hasattr(image_file, 'file'):
-                    image = Image.open(image_file.file)
-                    image.verify()
-                else:
-                    image = Image.open(image_file)
-                    image.verify()
-                return True
-            except Exception:
-                logger.warning("Invalid image file")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Error validating image: {str(e)}")
-            return False
+    return notes_data
 
-
-# Global OCR processor instance
-ocr_processor = ImageOCRProcessor()
-
-
-def process_image_ocr(image_path: str) -> List[FlashCard]:
-    """
-    Main function to process image with OCR
-    
-    This function should integrate your existing imageOCR.py functionality
-    """
-    return ocr_processor.process_image(image_path)
-
-
-def extract_text_from_image(image_path: str) -> List[Dict[str, Any]]:
-    """
-    Extract raw text data from image
-    """
-    return ocr_processor.extract_text_regions(image_path)
+if __name__ == "__main__":
+    # Example usage
+    result = process_image(r"C:\Users\KIIT0001\Pictures\mihir_notes.jpg")
+    if result:
+        print("✅ Processing completed successfully")
+    else:
+        print("❌ Processing failed")

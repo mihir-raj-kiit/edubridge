@@ -27,6 +27,9 @@ interface Graph {
 
 interface KnowledgeMapData {
   graphs: Graph[]
+  groq_enhanced?: boolean
+  summary?: string
+  key_concepts?: string[]
 }
 
 interface KnowledgeMapProps {
@@ -126,6 +129,14 @@ export default function KnowledgeMap({ data, className }: KnowledgeMapProps) {
           <CardTitle className="flex items-center space-x-2">
             <Network className="h-5 w-5 text-primary" />
             <span>Knowledge Map</span>
+            {data.groq_enhanced && (
+              <Badge
+                variant="default"
+                className="text-xs bg-gradient-to-r from-purple-500 to-pink-500"
+              >
+                ✨ AI Enhanced
+              </Badge>
+            )}
             {data.graphs.length > 1 && (
               <Badge variant="secondary">
                 {currentGraphIndex + 1} of {data.graphs.length}
@@ -231,22 +242,41 @@ export default function KnowledgeMap({ data, className }: KnowledgeMapProps) {
           </svg>
         </div>
 
-        <div className="mt-4 text-xs text-muted-foreground">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-1">
-              <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-              <span>General concepts</span>
+        {/* Groq AI Insights or Legend */}
+        {data.groq_enhanced && (data.summary || data.key_concepts) ? (
+          <div className="mt-4 text-xs bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-3 rounded-lg border">
+            <div className="font-medium mb-2 flex items-center gap-1">
+              ✨ AI Knowledge Insights:
             </div>
-            <div className="flex items-center space-x-1">
-              <div className="w-3 h-3 rounded-full bg-green-500"></div>
-              <span>Cost-related terms</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <div className="w-3 h-3 rounded-full bg-red-500"></div>
-              <span>Relationships/Rules</span>
+            {data.summary && (
+              <div className="mb-2 text-muted-foreground">
+                <strong>Summary:</strong> {data.summary}
+              </div>
+            )}
+            {data.key_concepts && data.key_concepts.length > 0 && (
+              <div className="text-muted-foreground">
+                <strong>Key Concepts:</strong> {data.key_concepts.join(', ')}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="mt-4 text-xs text-muted-foreground">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                <span>General concepts</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                <span>Cost-related terms</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                <span>Relationships/Rules</span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   )

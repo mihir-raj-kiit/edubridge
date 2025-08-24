@@ -7,6 +7,14 @@ export interface FlashCard {
   subject?: string
   createdAt: string
   lastReviewed?: string
+  // Groq AI enhancements
+  category?: string
+  groq_enhanced?: boolean
+  summary?: string
+  difficulty_level?: string
+  estimated_study_time?: string
+  key_concepts?: string[]
+  study_questions?: string[]
 }
 
 export interface Quiz {
@@ -49,6 +57,10 @@ export interface KnowledgeMapGraph {
 export interface KnowledgeMap {
   id: string
   graphs: KnowledgeMapGraph[]
+  // Groq AI enhancements
+  groq_enhanced?: boolean
+  summary?: string
+  key_concepts?: string[]
   subject: string
   createdAt: string
 }
