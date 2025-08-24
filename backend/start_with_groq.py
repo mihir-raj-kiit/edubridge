@@ -9,6 +9,10 @@ import sys
 import uvicorn
 from pathlib import Path
 
+# Add the backend directory to Python path
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, backend_dir)
+
 def check_groq_setup():
     """Check if Groq API key is configured"""
     groq_key = os.getenv("GROQ_API_KEY")
@@ -57,6 +61,9 @@ def main():
     
     # Start server
     try:
+        # Change to backend directory
+        os.chdir(backend_dir)
+        
         uvicorn.run(
             "main:app",
             host="0.0.0.0",

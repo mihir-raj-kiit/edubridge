@@ -115,6 +115,9 @@ async function checkBackendHealth(): Promise<boolean> {
     const fetchPromise = fetch(`${API_BASE_URL}/health`, {
       method: 'GET',
       cache: 'no-cache'
+    }).catch(() => {
+      // Convert fetch errors to rejections that can be caught
+      throw new Error('Network error')
     })
 
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -122,10 +125,11 @@ async function checkBackendHealth(): Promise<boolean> {
     })
 
     const response = await Promise.race([fetchPromise, timeoutPromise])
-    return response.ok
+    return response && response.ok
 
   } catch (error) {
     // Backend not available - this is expected during development
+    console.log('Backend health check failed:', error instanceof Error ? error.message : 'Unknown error')
     return false
   }
 }
@@ -358,6 +362,9 @@ export const ocrAPI = {
       const response = await apiRequest('/api/ocr', {
         method: 'POST',
         body: formData
+      }).catch((error) => {
+        console.warn('API request failed:', error instanceof Error ? error.message : 'Unknown error')
+        throw error
       })
 
       // Transform backend response to expected frontend format
@@ -370,7 +377,7 @@ export const ocrAPI = {
       return response as any
 
     } catch (error) {
-      console.warn('❌ OCR processing failed, using mock data:', error)
+      console.warn('❌ OCR processing failed, using mock data:', error instanceof Error ? error.message : 'Unknown error')
       return getMockData('/api/ocr') as any
     }
   }
