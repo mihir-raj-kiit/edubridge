@@ -269,7 +269,7 @@ export const authAPI = {
     localStorage.setItem('auth_token', mockToken)
     localStorage.setItem('user_role', role)
     localStorage.setItem('user_email', email)
-    
+
     return {
       token: mockToken,
       user: { email, role, id: `user_${Date.now()}` }
@@ -286,7 +286,7 @@ export const authAPI = {
     const token = localStorage.getItem('auth_token')
     const role = localStorage.getItem('user_role')
     const email = localStorage.getItem('user_email')
-    
+
     if (token && role && email) {
       return { token, role, email }
     }
@@ -333,11 +333,22 @@ export const ocrAPI = {
   }> => {
     console.log('🖼️ Processing image:', imageFile.name, 'Size:', Math.round(imageFile.size / 1024), 'KB')
 
-    // Check configuration first to avoid any network calls
+    // Check if we should use mock data
     if (USE_MOCK_DATA) {
       console.log('🎭 Using mock data (configured), skipping backend entirely')
       return getMockData('/api/ocr') as any
     }
+
+    // Always check backend availability
+    console.log('🔍 Checking backend connection...')
+    const backendAvailable = await checkBackendHealth()
+
+    if (!backendAvailable) {
+      console.log('🔌 Backend not available at', API_BASE_URL, '- using mock data as fallback')
+      return getMockData('/api/ocr') as any
+    }
+
+    console.log('✅ Backend available at', API_BASE_URL, '- proceeding with real processing')
 
     try {
       const formData = new FormData()
