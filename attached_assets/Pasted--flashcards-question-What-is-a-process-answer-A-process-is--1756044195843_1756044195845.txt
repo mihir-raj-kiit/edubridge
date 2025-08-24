@@ -1,0 +1,120 @@
+{
+  "flashcards": [
+    {
+      "question": "What is a process?",
+      "answer": "A process is a sequence of activities, a series of actions, that an operating system manages using the resources of the computer."
+    },
+    {
+      "question": "What is a process context?",
+      "answer": "A process context, also known as a process environment, contains the information about a specific process, such as its memory allocation, file descriptors, and program counter."
+    },
+    {
+      "question": "What is a process control block (PCB)?",
+      "answer": "A process control block (PCB) is a data structure that contains the information about a process, used by the operating system to manage the process."
+    },
+    {
+      "question": "What are the three states of a process?",
+      "answer": "The three states of a process are: running, waiting, and sleeping."
+    },
+    {
+      "question": "What is a process transition?",
+      "answer": "A process transition is a change in the state of a process, for example, from running to waiting or from waiting to running."
+    },
+    {
+      "question": "What is a process creator?",
+      "answer": "A process creator is the process that creates and launches a new process."
+    },
+    {
+      "question": "What is a process hierarchy?",
+      "answer": "A process hierarchy is a tree-like structure showing the parent-child relationships between processes."
+    },
+    {
+      "question": "What is process synchronization?",
+      "answer": "Process synchronization is a mechanism used to coordinate the activity of multiple processes, ensuring that they do not interfere with each other's access to shared resources."
+    },
+    {
+      "question": "What is process communication?",
+      "answer": "Process communication is the process of exchanging information between processes."
+    },
+    {
+      "question": "A process is an instance of what?",
+      "answer": "a program in execution"
+    },
+    {
+      "question": "What are the components of a process?",
+      "answer": "code, data, stack, and other OS-managed resources"
+    },
+    {
+      "question": "What are the five process states?",
+      "answer": "New, Running, Sleeping, Zombied, and Dead"
+    },
+    {
+      "question": "What is the initial state of a process?",
+      "answer": "New"
+    },
+    {
+      "question": "What is the state of a process that is currently being executed?",
+      "answer": "Running"
+    },
+    {
+      "question": "What is the state of a process that is waiting for an event to occur?",
+      "answer": "Sleeping"
+    },
+    {
+      "question": "What is the state of a process that has finished execution but still occupies system resources?",
+      "answer": "Zombied"
+    },
+    {
+      "question": "What is the state of a process that has terminated and released all system resources?",
+      "answer": "Dead"
+    },
+    {
+      "question": "What is the first state a process can be in?",
+      "answer": "New"
+    },
+    {
+      "question": "What state is the process in when it is ready to execute?",
+      "answer": "Ready"
+    },
+    {
+      "question": "What state is the process in when it is currently executing?",
+      "answer": "Running"
+    },
+    {
+      "question": "What state is the process in when it is waiting for something?",
+      "answer": "Waiting"
+    },
+    {
+      "question": "What is the final state a process can be in?",
+      "answer": "Terminated"
+    },
+    {
+      "question": "What is a PCB?",
+      "answer": "Process Control Block"
+    },
+    {
+      "question": "What does PCB contain?",
+      "answer": "Information about a process, such as its memory address, open files, and I/O devices"
+    },
+    {
+      "question": "What is the purpose of PCB?",
+      "answer": "To manage the resources allocated to a process"
+    },
+    {
+      "question": "What happens when a PCB is allocated to a process?",
+      "answer": "The OS allocates system resources to the process"
+    },
+    {
+      "question": "What happens when a PCB is deallocated from a process?",
+      "answer": "The OS frees the allocated system resources"
+    },
+    {
+      "question": "What does the PCB store?",
+      "answer": "all information about a process"
+    },
+    {
+      "question": "What information is included in the PCB about a process?",
+      "answer": "process ID, state, registers, memory limits, and open files"
+    }
+  ]
+}

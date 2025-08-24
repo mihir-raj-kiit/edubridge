@@ -1,0 +1,281 @@
+{
+  "graphs": [
+    {
+      "nodes": [
+        {
+          "id": "mc",
+          "label": "MC"
+        },
+        {
+          "id": "avc",
+          "label": "Avc"
+        },
+        {
+          "id": "relationship_mc_avc",
+          "label": "relationship between MC and Avc"
+        }
+      ],
+      "edges": [
+        {
+          "from": "mc",
+          "to": "relationship_mc_avc"
+        },
+        {
+          "from": "avc",
+          "to": "relationship_mc_avc"
+        }
+      ]
+    },
+    {
+      "nodes": [
+        {
+          "id": "avc",
+          "label": "Average Variable Cost"
+        },
+        {
+          "id": "mc",
+          "label": "Marginal Cost"
+        },
+        {
+          "id": "same_point",
+          "label": "starts from same point"
+        }
+      ],
+      "edges": [
+        {
+          "from": "avc",
+          "to": "same_point"
+        },
+        {
+          "from": "mc",
+          "to": "same_point"
+        }
+      ]
+    },
+    {
+      "nodes": [
+        {
+          "id": "avc",
+          "label": "Average Variable Cost"
+        },
+        {
+          "id": "mc",
+          "label": "Marginal Cost"
+        }
+      ],
+      "edges": [
+        {
+          "from": "avc",
+          "to": "mc"
+        }
+      ]
+    },
+    {
+      "nodes": [
+        {
+          "id": "avc",
+          "label": "Average Variable Cost"
+        },
+        {
+          "id": "mc",
+          "label": "Marginal Cost"
+        },
+        {
+          "id": "rule_avc_rising",
+          "label": "When Average Variable Cost is rising"
+        }
+      ],
+      "edges": [
+        {
+          "from": "avc",
+          "to": "rule_avc_rising"
+        }
+      ]
+    },
+    {
+      "nodes": [
+        {
+          "id": "avc",
+          "label": "Average Variable Cost"
+        },
+        {
+          "id": "mc",
+          "label": "Marginal Cost"
+        }
+      ],
+      "edges": [
+        {
+          "from": "avc",
+          "to": "mc"
+        }
+      ]
+    },
+    {
+      "nodes": [
+        {
+          "id": "ac",
+          "label": "AC"
+        },
+        {
+          "id": "avc",
+          "label": "AVC"
+        },
+        {
+          "id": "mc",
+          "label": "MC"
+        }
+      ],
+      "edges": []
+    },
+    {
+      "nodes": [
+        {
+          "id": "avc",
+          "label": "Average Variable Cost (AVC)"
+        },
+        {
+          "id": "afc",
+          "label": "Average Fixed Cost (AFC)"
+        },
+        {
+          "id": "ijac",
+          "label": "IJAC (sum of AVC and AFC)"
+        },
+        {
+          "id": "ac",
+          "label": "Average Cost (AC)"
+        }
+      ],
+      "edges": [
+        {
+          "from": "ijac",
+          "to": "ac"
+        }
+      ]
+    },
+    {
+      "nodes": [
+        {
+          "id": "avc",
+          "label": "AVC"
+        },
+        {
+          "id": "mc",
+          "label": "MC"
+        },
+        {
+          "id": "same_point",
+          "label": "starts from same point"
+        }
+      ],
+      "edges": [
+        {
+          "from": "avc",
+          "to": "same_point"
+        },
+        {
+          "from": "mc",
+          "to": "same_point"
+        }
+      ]
+    },
+    {
+      "nodes": [
+        {
+          "id": "mc",
+          "label": "Marginal Cost (MC)"
+        },
+        {
+          "id": "ac",
+          "label": "Average Cost (AC)"
+        },
+        {
+          "id": "avc",
+          "label": "Average Variable Cost (AVC)"
+        }
+      ],
+      "edges": [
+        {
+          "from": "mc",
+          "to": "ac"
+        },
+        {
+          "from": "mc",
+          "to": "avc"
+        },
+        {
+          "from": "ac",
+          "to": "mc_avc_falls"
+        },
+        {
+          "from": "avc",
+          "to": "mc_avc_falls"
+        }
+      ]
+    },
+    {
+      "nodes": [
+        {
+          "id": "mc",
+          "label": "MC"
+        },
+        {
+          "id": "ac",
+          "label": "Average Cost (AC)"
+        },
+        {
+          "id": "avc",
+          "label": "Average Variable Cost (AVC)"
+        },
+        {
+          "id": "vmc",
+          "label": "Vertical Maximum Cost (VMC)"
+        }
+      ],
+      "edges": [
+        {
+          "from": "mc",
+          "to": "never_reach_minimum"
+        },
+        {
+          "from": "ac",
+          "to": "never_reach_minimum"
+        },
+        {
+          "from": "avc",
+          "to": "never_reach_minimum"
+        }
+      ]
+    },
+    {
+      "nodes": [
+        {
+          "id": "ac",
+          "label": "Average Cost"
+        },
+        {
+          "id": "avc",
+          "label": "Average Variable Cost"
+        },
+        {
+          "id": "afc",
+          "label": "Average Fixed Cost"
+        },
+        {
+          "id": "never_coincide",
+          "label": "AC and AVC never coincide"
+        }
+      ],
+      "edges": [
+        {
+          "from": "ac",
+          "to": "never_coincide"
+        },
+        {
+          "from": "avc",
+          "to": "never_coincide"
+        }
+      ]
+    }
+  ]
+}
