@@ -31,15 +31,15 @@ import Footer from '@/components/Footer'
 import OfflineBanner from '@/components/OfflineBanner'
 
 interface NewFlashcard {
-  front: string
-  back: string
+  question: string
+  answer: string
   subject: string
 }
 
 export default function TeacherDashboard() {
   const [user, setUser] = useState<{ email: string; role: string } | null>(null)
   const [activeSection, setActiveSection] = useState<'overview' | 'content' | 'engagement' | 'manage'>('overview')
-  const [newFlashcard, setNewFlashcard] = useState<NewFlashcard>({ front: '', back: '', subject: '' })
+  const [newFlashcard, setNewFlashcard] = useState<NewFlashcard>({ question: '', answer: '', subject: '' })
   const [flashcards, setFlashcards] = useState<FlashCard[]>([])
   const [isCreating, setIsCreating] = useState(false)
   const router = useRouter()
@@ -100,15 +100,15 @@ export default function TeacherDashboard() {
   }
 
   const handleCreateFlashcard = async () => {
-    if (!newFlashcard.front.trim() || !newFlashcard.back.trim()) return
+    if (!newFlashcard.question.trim() || !newFlashcard.answer.trim()) return
 
     setIsCreating(true)
 
     try {
       const flashcard: FlashCard = {
         id: generateId(),
-        front: newFlashcard.front.trim(),
-        back: newFlashcard.back.trim(),
+        question: newFlashcard.question.trim(),
+        answer: newFlashcard.answer.trim(),
         subject: newFlashcard.subject.trim() || 'General',
         createdAt: new Date().toISOString()
       }
@@ -120,16 +120,16 @@ export default function TeacherDashboard() {
       // Try to sync with backend
       try {
         await teacherAPI.uploadFlashcards([{
-          front: flashcard.front,
-          back: flashcard.back,
-          subject: flashcard.subject
+          question: flashcard.question,
+          answer: flashcard.answer,
+          subject: flashcard.subject || 'General'
         }])
       } catch (error) {
         console.warn('Could not sync with backend, saved locally:', error)
       }
 
       // Reset form
-      setNewFlashcard({ front: '', back: '', subject: '' })
+      setNewFlashcard({ question: '', answer: '', subject: '' })
     } catch (error) {
       console.error('Error creating flashcard:', error)
     } finally {
@@ -207,8 +207,8 @@ export default function TeacherDashboard() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Question/Front</label>
                     <Textarea
-                      value={newFlashcard.front}
-                      onChange={(e) => setNewFlashcard(prev => ({ ...prev, front: e.target.value }))}
+                      value={newFlashcard.question}
+                      onChange={(e) => setNewFlashcard(prev => ({ ...prev, question: e.target.value }))}
                       placeholder="Enter the question or term..."
                       rows={4}
                     />
@@ -216,8 +216,8 @@ export default function TeacherDashboard() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Answer/Back</label>
                     <Textarea
-                      value={newFlashcard.back}
-                      onChange={(e) => setNewFlashcard(prev => ({ ...prev, back: e.target.value }))}
+                      value={newFlashcard.answer}
+                      onChange={(e) => setNewFlashcard(prev => ({ ...prev, answer: e.target.value }))}
                       placeholder="Enter the answer or definition..."
                       rows={4}
                     />
@@ -226,7 +226,7 @@ export default function TeacherDashboard() {
 
                 <Button
                   onClick={handleCreateFlashcard}
-                  disabled={!newFlashcard.front.trim() || !newFlashcard.back.trim() || isCreating}
+                  disabled={!newFlashcard.question.trim() || !newFlashcard.answer.trim() || isCreating}
                   className="w-full"
                 >
                   {isCreating ? 'Creating...' : 'Create Flashcard'}
@@ -263,11 +263,11 @@ export default function TeacherDashboard() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <div className="text-sm font-medium text-muted-foreground mb-1">Question</div>
-                            <div className="text-sm">{card.front}</div>
+                            <div className="text-sm">{card.question}</div>
                           </div>
                           <div>
                             <div className="text-sm font-medium text-muted-foreground mb-1">Answer</div>
-                            <div className="text-sm">{card.back}</div>
+                            <div className="text-sm">{card.answer}</div>
                           </div>
                         </div>
                         <div className="text-xs text-muted-foreground">

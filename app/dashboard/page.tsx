@@ -6,7 +6,7 @@ import { Brain, Upload, MessageSquare, Heart, BookOpen, TrendingUp } from 'lucid
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { authAPI } from '@/lib/api'
-import { flashcardStorage, quizStorage, wellnessStorage, type FlashCard } from '@/lib/storage'
+import { flashcardStorage, quizStorage, wellnessStorage, knowledgeMapStorage, type FlashCard, type KnowledgeMap as KnowledgeMapType } from '@/lib/storage'
 import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import Navbar from '@/components/Navbar'
@@ -16,12 +16,14 @@ import OfflineBanner from '@/components/OfflineBanner'
 import ChatBox from '@/components/ChatBox'
 import FileUpload from '@/components/FileUpload'
 import FlashcardCarousel from '@/components/FlashcardCarousel'
+import KnowledgeMap from '@/components/KnowledgeMap'
 import QuizCard from '@/components/QuizCard'
 import WellnessCheckForm from '@/components/WellnessCheckForm'
 
 export default function StudentDashboard() {
   const [user, setUser] = useState<{ email: string; role: string } | null>(null)
   const [flashcards, setFlashcards] = useState<FlashCard[]>([])
+  const [knowledgeMaps, setKnowledgeMaps] = useState<KnowledgeMapType[]>([])
   const [quizzes, setQuizzes] = useState<any[]>([])
   const [activeSection, setActiveSection] = useState<'overview' | 'ai-tutor' | 'upload' | 'quizzes' | 'wellness'>('overview')
   const [wellnessScore, setWellnessScore] = useState<number | null>(null)
@@ -68,12 +70,14 @@ export default function StudentDashboard() {
   useEffect(() => {
     const loadData = () => {
       const savedFlashcards = flashcardStorage.getAll()
+      const savedKnowledgeMaps = knowledgeMapStorage.getAll()
       const savedQuizzes = quizStorage.getAll()
       const recentWellness = wellnessStorage.getLast30Days()
-      
+
       setFlashcards(savedFlashcards)
+      setKnowledgeMaps(savedKnowledgeMaps)
       setQuizzes(savedQuizzes)
-      
+
       // Calculate average wellness score
       if (recentWellness.length > 0) {
         const avgScore = Math.round(
@@ -88,6 +92,10 @@ export default function StudentDashboard() {
 
   const handleNewFlashcards = (newFlashcards: FlashCard[]) => {
     setFlashcards(prev => [...prev, ...newFlashcards])
+  }
+
+  const handleNewKnowledgeMap = (newKnowledgeMap: KnowledgeMapType) => {
+    setKnowledgeMaps(prev => [...prev, newKnowledgeMap])
   }
 
   const handleQuizComplete = (score: number, total: number) => {
@@ -162,13 +170,30 @@ export default function StudentDashboard() {
             <div>
               <h2 className="text-2xl font-bold mb-2">{t('dashboard.uploadNotes')}</h2>
               <p className="text-muted-foreground">
-                Upload your handwritten notes and let AI convert them into interactive flashcards for better studying.
+                Upload your handwritten notes and let AI convert them into interactive flashcards and knowledge maps for better studying.
               </p>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <FileUpload onFlashcardsGenerated={handleNewFlashcards} />
+              <FileUpload
+                onFlashcardsGenerated={handleNewFlashcards}
+                onKnowledgeMapGenerated={handleNewKnowledgeMap}
+              />
               <FlashcardCarousel flashcards={flashcards} />
             </div>
+            {knowledgeMaps.length > 0 && (
+              <div className="mt-8">
+                <h3 className="text-xl font-semibold mb-4">Knowledge Maps</h3>
+                <div className="space-y-4">
+                  {knowledgeMaps.slice(-3).map((map, index) => (
+                    <KnowledgeMap
+                      key={map.id}
+                      data={{ graphs: map.graphs }}
+                      className="mb-4"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )
 

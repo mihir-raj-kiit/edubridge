@@ -140,7 +140,7 @@ export default function FlashcardCarousel({
               <div className="flex-1 flex items-center justify-center text-center">
                 <div className="space-y-3">
                   <div className="text-lg font-medium leading-relaxed">
-                    {showingAnswer ? currentCard.back : currentCard.front}
+                    {showingAnswer ? currentCard.answer : currentCard.question}
                   </div>
                   
                   {!showingAnswer && (

@@ -5,16 +5,17 @@ import { Upload, Image, FileText, Loader2, CheckCircle, AlertCircle } from 'luci
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ocrAPI } from '@/lib/api'
-import { flashcardStorage, type FlashCard } from '@/lib/storage'
+import { flashcardStorage, knowledgeMapStorage, type FlashCard, type KnowledgeMap as KnowledgeMapType } from '@/lib/storage'
 import { t } from '@/lib/i18n'
 import { cn, generateId } from '@/lib/utils'
 
 interface FileUploadProps {
   className?: string
   onFlashcardsGenerated?: (flashcards: FlashCard[]) => void
+  onKnowledgeMapGenerated?: (knowledgeMap: KnowledgeMapType) => void
 }
 
-export default function FileUpload({ className, onFlashcardsGenerated }: FileUploadProps) {
+export default function FileUpload({ className, onFlashcardsGenerated, onKnowledgeMapGenerated }: FileUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
@@ -88,21 +89,39 @@ export default function FileUpload({ className, onFlashcardsGenerated }: FileUpl
 
     try {
       const response = await ocrAPI.processImage(uploadedFile)
-      
+
       // Convert API response to FlashCard format
       const flashcards: FlashCard[] = response.flashcards.map(card => ({
-        ...card,
         id: generateId(),
+        question: card.question,
+        answer: card.answer,
+        subject: 'General',
         createdAt: new Date().toISOString()
       }))
 
-      // Save to local storage
+      // Save flashcards to local storage
       flashcardStorage.addMany(flashcards)
 
+      // Process knowledge map if available
+      if (response.knowledge_map && response.knowledge_map.graphs.length > 0) {
+        const knowledgeMap: KnowledgeMapType = {
+          id: generateId(),
+          graphs: response.knowledge_map.graphs,
+          subject: flashcards.length > 0 ? (flashcards[0].subject || 'General') : 'General',
+          createdAt: new Date().toISOString()
+        }
+
+        // Save knowledge map to local storage
+        knowledgeMapStorage.add(knowledgeMap)
+
+        // Notify parent component
+        onKnowledgeMapGenerated?.(knowledgeMap)
+      }
+
       setStatus('success')
-      setStatusMessage(`Generated ${flashcards.length} flashcards successfully!`)
-      
-      // Notify parent component
+      setStatusMessage(`Generated ${flashcards.length} flashcards${response.knowledge_map ? ' and knowledge map' : ''} successfully!`)
+
+      // Notify parent component about flashcards
       onFlashcardsGenerated?.(flashcards)
 
       // Reset after success

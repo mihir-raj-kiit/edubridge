@@ -2,9 +2,9 @@
 
 export interface FlashCard {
   id: string
-  front: string
-  back: string
-  subject: string
+  question: string
+  answer: string
+  subject?: string
   createdAt: string
   lastReviewed?: string
 }
@@ -30,6 +30,29 @@ export interface WellnessRecord {
   timestamp: string
 }
 
+export interface KnowledgeMapNode {
+  id: string
+  label: string
+}
+
+export interface KnowledgeMapEdge {
+  from: string
+  to: string
+  label?: string
+}
+
+export interface KnowledgeMapGraph {
+  nodes: KnowledgeMapNode[]
+  edges: KnowledgeMapEdge[]
+}
+
+export interface KnowledgeMap {
+  id: string
+  graphs: KnowledgeMapGraph[]
+  subject: string
+  createdAt: string
+}
+
 export interface ChatMessage {
   id: string
   message: string
@@ -42,6 +65,7 @@ export interface OfflineData {
   quizzes: Quiz[]
   wellnessRecords: WellnessRecord[]
   chatHistory: ChatMessage[]
+  knowledgeMaps: KnowledgeMap[]
   lastSync: string
 }
 
@@ -51,6 +75,7 @@ const STORAGE_KEYS = {
   QUIZZES: 'edubridge_quizzes',
   WELLNESS_RECORDS: 'edubridge_wellness',
   CHAT_HISTORY: 'edubridge_chat',
+  KNOWLEDGE_MAPS: 'edubridge_knowledge_maps',
   LAST_SYNC: 'edubridge_last_sync',
   USER_PREFERENCES: 'edubridge_preferences',
   OFFLINE_MODE: 'edubridge_offline_mode'
@@ -134,6 +159,33 @@ export const flashcardStorage = {
 
   clear: (): boolean => {
     return setToStorage(STORAGE_KEYS.FLASHCARDS, [])
+  }
+}
+
+// Knowledge Maps storage
+export const knowledgeMapStorage = {
+  getAll: (): KnowledgeMap[] => {
+    return getFromStorage(STORAGE_KEYS.KNOWLEDGE_MAPS, [])
+  },
+
+  save: (knowledgeMaps: KnowledgeMap[]): boolean => {
+    return setToStorage(STORAGE_KEYS.KNOWLEDGE_MAPS, knowledgeMaps)
+  },
+
+  add: (knowledgeMap: KnowledgeMap): boolean => {
+    const existing = knowledgeMapStorage.getAll()
+    const updated = [...existing, knowledgeMap]
+    return knowledgeMapStorage.save(updated)
+  },
+
+  remove: (id: string): boolean => {
+    const existing = knowledgeMapStorage.getAll()
+    const updated = existing.filter(map => map.id !== id)
+    return knowledgeMapStorage.save(updated)
+  },
+
+  clear: (): boolean => {
+    return setToStorage(STORAGE_KEYS.KNOWLEDGE_MAPS, [])
   }
 }
 
@@ -275,6 +327,7 @@ export const bulkStorage = {
       quizzes: quizStorage.getAll(),
       wellnessRecords: wellnessStorage.getAll(),
       chatHistory: chatStorage.getAll(),
+      knowledgeMaps: knowledgeMapStorage.getAll(),
       lastSync: syncStorage.getLastSync() || ''
     }
   },
@@ -285,8 +338,9 @@ export const bulkStorage = {
       if (data.quizzes) quizStorage.save(data.quizzes)
       if (data.wellnessRecords) wellnessStorage.save(data.wellnessRecords)
       if (data.chatHistory) chatStorage.save(data.chatHistory)
+      if (data.knowledgeMaps) knowledgeMapStorage.save(data.knowledgeMaps)
       if (data.lastSync) syncStorage.setLastSync(data.lastSync)
-      
+
       return true
     } catch (error) {
       console.error('Error importing data:', error)
@@ -300,7 +354,8 @@ export const bulkStorage = {
       quizStorage.clear()
       wellnessStorage.clear()
       chatStorage.clear()
-      
+      knowledgeMapStorage.clear()
+
       return true
     } catch (error) {
       console.error('Error clearing data:', error)
