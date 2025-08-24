@@ -12,6 +12,7 @@ localPort = 3000
 externalPort = 80
 
 [workflows]
+runButton = "Full AI Pipeline"
 
 [[workflows.workflow]]
 name = "Backend Server"
@@ -26,6 +27,19 @@ args = "cd backend && python main.py"
 name = "Backend with Groq"
 author = 46833159
 mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd backend && python start_with_groq.py"
+
+[[workflows.workflow]]
+name = "Full AI Pipeline"
+author = 46833159
+mode = "parallel"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
