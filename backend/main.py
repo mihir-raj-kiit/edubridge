@@ -1,128 +1,97 @@
-"""
-FastAPI Backend for OCR and Diagram Detection
-
-A comprehensive backend service for processing images to extract text (OCR)
-and detect diagrams/flowcharts with structured JSON output.
-"""
-
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
-from contextlib import asynccontextmanager
-import uvicorn
+import os
+import logging
+from pathlib import Path
 
-from app.config import settings
 from app.api.router import api_router
-from app.utils.file_handler import ensure_directories
+from app.core.config import get_settings
+from app.core.logging import get_logger
 
-# Lifespan event handler
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """
-    Lifespan event handler for startup and shutdown
-    """
-    # Startup
-    print("🚀 Starting OCR & Diagram Detection API...")
-    ensure_directories()
-    print(f"📁 Upload directory: {settings.upload_dir}")
-    print(f"📁 Output directory: {settings.output_dir}")
-    print(f"🔧 Debug mode: {settings.debug}")
-    
-    yield
-    
-    # Shutdown
-    print("🛑 Shutting down OCR & Diagram Detection API...")
+# Initialize settings and logger
+settings = get_settings()
+logger = get_logger(__name__)
 
-# Create FastAPI application
+# Create FastAPI app
 app = FastAPI(
-    title="OCR & Diagram Detection API",
-    description="A FastAPI backend for extracting text and detecting diagrams from images",
+    title="StudySync OCR & AI Processing API",
+    description="Backend API for converting handwritten notes to digital flashcards and knowledge maps",
     version="1.0.0",
-    docs_url="/docs" if settings.debug else None,
-    redoc_url="/redoc" if settings.debug else None,
-    lifespan=lifespan
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
-# CORS middleware
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],  # Frontend origins
+    allow_origins=["*"],  # In production, specify exact origins
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include API routes
-app.include_router(api_router)
+# Create output directory if it doesn't exist
+output_dir = Path("outputs")
+output_dir.mkdir(exist_ok=True)
 
-# Global exception handler
-@app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
-    """
-    Global exception handler for unhandled errors
-    """
-    if settings.debug:
-        # In debug mode, show detailed error information
-        return JSONResponse(
-            status_code=500,
-            content={
-                "error": "Internal server error",
-                "detail": str(exc),
-                "type": type(exc).__name__
-            }
-        )
-    else:
-        # In production mode, show generic error message
-        return JSONResponse(
-            status_code=500,
-            content={
-                "error": "Internal server error",
-                "detail": "An unexpected error occurred"
-            }
-        )
+# Mount static files for output downloads
+app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
 
-# Root endpoint
+# Include API router
+app.include_router(api_router, prefix="/api")
+
 @app.get("/")
 async def root():
-    """
-    Root endpoint with API information
-    """
+    """Root endpoint with API information"""
     return {
-        "message": "OCR & Diagram Detection API",
+        "message": "StudySync OCR & AI Processing API",
         "version": "1.0.0",
-        "status": "operational",
         "docs": "/docs",
-        "health": "/health",
+        "health": "/api/health",
         "endpoints": {
             "ocr": "/api/ocr",
-            "diagram_detection": "/api/diagram-detect",
-            "combined_extraction": "/api/extract"
+            "diagram_detect": "/api/diagram-detect", 
+            "extract_all": "/api/extract",
+            "groq_enhance": "/api/groq/enhance",
+            "groq_health": "/api/groq/health"
         }
     }
 
-# Legacy endpoints for backward compatibility
-@app.post("/diagram-detect")
-async def legacy_diagram_detect(file):
-    """Legacy endpoint - redirects to new API structure"""
-    return HTTPException(
-        status_code=301, 
-        detail="This endpoint has moved to /api/diagram-detect"
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "version": "1.0.0",
+        "components": {
+            "ocr": "operational",
+            "diagram_detection": "operational", 
+            "groq_ai": "available" if settings.groq_api_key else "disabled",
+            "file_storage": "operational"
+        }
+    }
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Global exception handler"""
+    logger.error(f"Unhandled exception: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal server error",
+            "message": str(exc),
+            "path": str(request.url)
+        }
     )
 
-@app.post("/extract")
-async def legacy_extract(file):
-    """Legacy endpoint - redirects to new API structure"""
-    return HTTPException(
-        status_code=301, 
-        detail="This endpoint has moved to /api/extract"
-    )
-
-# Development server
 if __name__ == "__main__":
+    import uvicorn
     uvicorn.run(
         "main:app",
-        host=settings.api_host,
-        port=settings.api_port,
-        reload=settings.api_reload,
-        log_level="debug" if settings.debug else "info"
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        log_level="info"
     )

@@ -1,46 +1,61 @@
-import os
+
+from pydantic_settings import BaseSettings
 from typing import List, Optional
-try:
-    from pydantic_settings import BaseSettings
-except ImportError:
-    from pydantic import BaseSettings
+import os
+from pathlib import Path
 
 class Settings(BaseSettings):
+    """Application settings"""
+    
     # API Configuration
-    api_host: str = "0.0.0.0"
-    api_port: int = 8000
-    api_reload: bool = True
+    api_title: str = "StudySync OCR & AI Processing API"
+    api_version: str = "1.0.0"
     debug: bool = True
-
-    # Upload Configuration
-    max_file_size: int = 10485760  # 10MB
-    allowed_extensions: List[str] = [".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".webp"]
-    upload_dir: str = "uploads"
-    output_dir: str = "outputs"
-
+    
+    # Server Configuration
+    host: str = "0.0.0.0"
+    port: int = 8000
+    
     # OCR Configuration
     ocr_languages: List[str] = ["en"]
-    ocr_confidence_threshold: float = 0.5
+    ocr_confidence_threshold: float = 0.6
     enable_spell_correction: bool = True
-
-    # Diagram Detection Configuration
-    min_contour_area: int = 1000
-    diagram_detection_threshold: int = 150
-
+    
+    # Image Processing
+    diagram_detection_threshold: int = 127
+    min_contour_area: float = 500.0
+    max_image_size: int = 10 * 1024 * 1024  # 10MB
+    
+    # File Storage
+    output_dir: str = "outputs"
+    temp_dir: str = "temp"
+    
     # Groq AI Configuration
     groq_api_key: Optional[str] = None
     groq_model: str = "llama-3.3-70b-versatile"
     groq_temperature: float = 0.7
     groq_max_tokens: int = 2000
-    enable_groq_processing: bool = True
+    
+    # CORS Configuration
+    cors_origins: List[str] = ["*"]
     
     class Config:
         env_file = ".env"
+        env_file_encoding = "utf-8"
         case_sensitive = False
 
 # Global settings instance
 settings = Settings()
 
-# Ensure directories exist
-os.makedirs(settings.upload_dir, exist_ok=True)
-os.makedirs(settings.output_dir, exist_ok=True)
+def get_settings() -> Settings:
+    """Get application settings"""
+    return settings
+
+# Ensure required directories exist
+def setup_directories():
+    """Create required directories"""
+    Path(settings.output_dir).mkdir(exist_ok=True)
+    Path(settings.temp_dir).mkdir(exist_ok=True)
+
+# Initialize directories
+setup_directories()

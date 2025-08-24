@@ -10,3 +10,23 @@ run = ["sh", "-c", "npm run dev"]
 [[ports]]
 localPort = 3000
 externalPort = 80
+
+[workflows]
+
+[[workflows.workflow]]
+name = "Backend Server"
+author = 46833159
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd backend && python main.py"
+
+[[workflows.workflow]]
+name = "Backend with Groq"
+author = 46833159
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd backend && python start_with_groq.py"

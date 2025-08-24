@@ -1,80 +1,100 @@
+
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-class HealthResponse(BaseModel):
-    """Response model for health check"""
-    status: str = Field(..., description="Service status")
-    timestamp: datetime = Field(..., description="Response timestamp")
-    version: str = Field(..., description="API version")
-    uptime: float = Field(..., description="Service uptime in seconds")
-    system_info: Dict[str, Any] = Field(..., description="System information")
+class OCRTextItem(BaseModel):
+    """Individual OCR text item"""
+    type: str = Field(..., description="Type of content (text, heading)")
+    text: str = Field(..., description="Extracted text")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="OCR confidence score")
+    bbox: Optional[List[List[int]]] = Field(None, description="Bounding box coordinates")
 
-class ContentItem(BaseModel):
-    """Content item in structured notes"""
-    type: str = Field(..., description="Content type: text, heading, diagram")
-    text: Optional[str] = Field(None, description="Text content for text/heading types")
-    title: Optional[str] = Field(None, description="Title for diagram type")
-    description: Optional[str] = Field(None, description="Description for diagram type")
-    nodes: Optional[List[Dict]] = Field(default_factory=list, description="Diagram nodes")
-    connections: Optional[List[Dict]] = Field(default_factory=list, description="Diagram connections")
-    boxes: Optional[List[Dict]] = Field(default_factory=list, description="Bounding boxes for diagrams")
+class DiagramBox(BaseModel):
+    """Diagram bounding box"""
+    x: int = Field(..., description="X coordinate")
+    y: int = Field(..., description="Y coordinate") 
+    w: int = Field(..., description="Width")
+    h: int = Field(..., description="Height")
+    shape: Optional[str] = Field(None, description="Detected shape type")
+    confidence: Optional[float] = Field(None, description="Detection confidence")
+
+class DiagramContent(BaseModel):
+    """Diagram content structure"""
+    type: str = Field(default="diagram", description="Content type")
+    title: str = Field(..., description="Diagram title")
+    description: str = Field(..., description="Diagram description")
+    nodes: List[Dict[str, Any]] = Field(default_factory=list, description="Diagram nodes")
+    connections: List[Dict[str, Any]] = Field(default_factory=list, description="Diagram connections")
+    boxes: List[DiagramBox] = Field(..., description="Detected bounding boxes")
 
 class FlashCard(BaseModel):
-    """Flashcard model"""
+    """Flashcard structure"""
     question: str = Field(..., description="Flashcard question")
     answer: str = Field(..., description="Flashcard answer")
-    category: str = Field(default="general", description="Category/type of flashcard")
+    category: Optional[str] = Field(None, description="Flashcard category")
 
 class KnowledgeMapNode(BaseModel):
     """Knowledge map node"""
-    id: str = Field(..., description="Unique node identifier")
-    label: str = Field(..., description="Node label/name")
-    type: str = Field(default="concept", description="Node type")
+    id: str = Field(..., description="Node ID")
+    label: str = Field(..., description="Node label")
+    type: Optional[str] = Field(None, description="Node type")
 
 class KnowledgeMapEdge(BaseModel):
     """Knowledge map edge"""
-    from_: str = Field(..., alias="from", description="Source node ID")
-    to: str = Field(..., description="Target node ID")
-    label: str = Field(default="", description="Edge label")
+    from_node: str = Field(..., alias="from", description="Source node ID")
+    to_node: str = Field(..., alias="to", description="Target node ID")
+    label: Optional[str] = Field(None, description="Edge label")
 
 class KnowledgeMapData(BaseModel):
     """Knowledge map structure"""
-    nodes: List[KnowledgeMapNode] = Field(default_factory=list, description="Map nodes")
-    edges: List[KnowledgeMapEdge] = Field(default_factory=list, description="Map edges")
+    nodes: List[KnowledgeMapNode] = Field(..., description="Map nodes")
+    edges: List[KnowledgeMapEdge] = Field(..., description="Map edges")
 
-class BaseNotesResponse(BaseModel):
-    """Base response model for structured notes"""
+class OCRResponse(BaseModel):
+    """OCR processing response"""
     lecture_id: str = Field(..., description="Lecture identifier")
     course: str = Field(..., description="Course name")
-    topic: str = Field(..., description="Topic or subject")
-    date: str = Field(..., description="Date in YYYY-MM-DD format")
-    content: List[ContentItem] = Field(..., description="Structured content items")
+    topic: str = Field(..., description="Topic name")
+    date: str = Field(..., description="Processing date")
+    content: List[OCRTextItem] = Field(..., description="Extracted content")
 
-    # Groq AI enhancements
-    groq_enhanced: bool = Field(default=False, description="Whether content was enhanced by Groq AI")
-    flashcards: List[FlashCard] = Field(default_factory=list, description="AI-generated flashcards")
-    summary: str = Field(default="", description="AI-generated summary")
-    key_concepts: List[str] = Field(default_factory=list, description="Key concepts identified")
-    study_questions: List[str] = Field(default_factory=list, description="Study questions")
-    knowledge_map: Optional[KnowledgeMapData] = Field(default=None, description="Knowledge map structure")
-    difficulty_level: str = Field(default="intermediate", description="Estimated difficulty level")
-    estimated_study_time: str = Field(default="15-20 minutes", description="Estimated study time")
+class DiagramResponse(BaseModel):
+    """Diagram detection response"""
+    lecture_id: str = Field(..., description="Lecture identifier")
+    course: str = Field(..., description="Course name")
+    topic: str = Field(..., description="Topic name")
+    date: str = Field(..., description="Processing date")
+    content: List[DiagramContent] = Field(..., description="Detected diagrams")
 
-class OCRResponse(BaseNotesResponse):
-    """Response model for OCR processing"""
-    pass
+class ExtractResponse(BaseModel):
+    """Combined extraction response with optional AI enhancements"""
+    lecture_id: str = Field(..., description="Lecture identifier")
+    course: str = Field(..., description="Course name")
+    topic: str = Field(..., description="Topic name")
+    date: str = Field(..., description="Processing date")
+    content: List[Dict[str, Any]] = Field(..., description="Combined content")
+    
+    # Optional AI enhancements
+    groq_enhanced: Optional[bool] = Field(None, description="Whether enhanced by Groq AI")
+    flashcards: Optional[List[FlashCard]] = Field(None, description="Generated flashcards")
+    summary: Optional[str] = Field(None, description="Content summary")
+    key_concepts: Optional[List[str]] = Field(None, description="Key concepts")
+    study_questions: Optional[List[str]] = Field(None, description="Study questions")
+    knowledge_map: Optional[KnowledgeMapData] = Field(None, description="Knowledge map")
+    difficulty_level: Optional[str] = Field(None, description="Difficulty level")
+    estimated_study_time: Optional[str] = Field(None, description="Estimated study time")
 
-class DiagramResponse(BaseNotesResponse):
-    """Response model for diagram detection"""
-    pass
-
-class ExtractResponse(BaseNotesResponse):
-    """Response model for combined extraction"""
-    pass
+class HealthResponse(BaseModel):
+    """Health check response"""
+    status: str = Field(..., description="Service status")
+    version: str = Field(..., description="API version")
+    components: Dict[str, str] = Field(..., description="Component statuses")
+    timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
 class ErrorResponse(BaseModel):
-    """Error response model"""
-    error: str = Field(..., description="Error message")
-    detail: Optional[str] = Field(None, description="Detailed error information")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Error timestamp")
+    """Error response"""
+    error: str = Field(..., description="Error type")
+    message: str = Field(..., description="Error message")
+    detail: Optional[str] = Field(None, description="Additional error details")
+    timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
