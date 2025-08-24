@@ -1,79 +1,104 @@
-from fastapi import FastAPI, UploadFile, File
+"""
+EduBridge Backend - Main FastAPI Application
+
+This is the main entry point for the EduBridge backend service that provides
+OCR processing, diagram detection, and AI-powered learning features.
+"""
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
-import tempfile
-import shutil
-from datetime import datetime
-from diagram_detector import detect_diagrams_json
-from imageOCR import process_image  # Make sure this exists and is importable
+from contextlib import asynccontextmanager
+import uvicorn
+import os
+from pathlib import Path
 
-app = FastAPI()
+from app.api.router import api_router
+from app.core.config import get_settings
+from app.core.logging import setup_logging
 
-@app.post("/diagram-detect")
-async def diagram_detect(file: UploadFile = File(...)):
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
-            shutil.copyfileobj(file.file, tmp)
-            tmp_path = tmp.name
+# Get application settings
+settings = get_settings()
 
-        boxes = detect_diagrams_json(tmp_path)
+# Setup logging
+setup_logging()
 
-        response = {
-            "lecture_id": "lec_001",
-            "course": "Operating Systems",
-            "topic": "Process Management",
-            "date": datetime.today().strftime("%Y-%m-%d"),
-            "content": [
-                {
-                    "type": "diagram",
-                    "title": "Detected Diagram(s)",
-                    "description": "Auto-detected diagrams with bounding boxes.",
-                    "nodes": [],
-                    "connections": [],
-                    "boxes": boxes
-                }
-            ]
-        }
 
-        return JSONResponse(content=response)
-    except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan events"""
+    # Startup
+    print("🚀 EduBridge Backend starting up...")
+    
+    # Create necessary directories
+    Path("uploads").mkdir(exist_ok=True)
+    Path("outputs").mkdir(exist_ok=True)
+    Path("temp").mkdir(exist_ok=True)
+    
+    print("📁 Created necessary directories")
+    print(f"🌍 Environment: {settings.ENVIRONMENT}")
+    print(f"🔧 Debug mode: {settings.DEBUG}")
+    
+    yield
+    
+    # Shutdown
+    print("🛑 EduBridge Backend shutting down...")
 
-@app.post("/extract")
-async def extract(file: UploadFile = File(...)):
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
-            shutil.copyfileobj(file.file, tmp)
-            tmp_path = tmp.name
 
-        # OCR part
-        ocr_json = process_image(tmp_path, output_file=None)  # should return dict
+# Create FastAPI application
+app = FastAPI(
+    title="EduBridge Backend API",
+    description="AI-powered OCR and learning platform backend service",
+    version="1.0.0",
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
+    lifespan=lifespan
+)
 
-        # Diagram Detection part
-        boxes = detect_diagrams_json(tmp_path)
+# CORS middleware for frontend integration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
 
-        # Merge OCR and Diagrams into one response
-        response = {
-            "lecture_id": ocr_json.get("lecture_id", "lec_001"),
-            "course": ocr_json.get("course", "Operating Systems"),
-            "topic": ocr_json.get("topic", "Process Management"),
-            "date": ocr_json.get("date", datetime.today().strftime("%Y-%m-%d")),
-            "content": []
-        }
+# Include API routes
+app.include_router(api_router, prefix="/api/v1")
 
-        # Add OCR content if available
-        if "content" in ocr_json:
-            response["content"].extend(ocr_json["content"])
+# Mount static files for uploads (if needed)
+if os.path.exists("uploads"):
+    app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-        # Add diagram info
-        response["content"].append({
-            "type": "diagram",
-            "title": "Detected Diagram(s)",
-            "description": "Auto-detected diagrams with bounding boxes.",
-            "nodes": [],
-            "connections": [],
-            "boxes": boxes
-        })
 
-        return JSONResponse(content=response)
-    except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)
+@app.get("/")
+async def root():
+    """Root endpoint - health check"""
+    return JSONResponse({
+        "message": "EduBridge Backend API",
+        "version": "1.0.0",
+        "status": "healthy",
+        "environment": settings.ENVIRONMENT
+    })
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return JSONResponse({
+        "status": "healthy",
+        "version": "1.0.0",
+        "environment": settings.ENVIRONMENT
+    })
+
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",
+        host=settings.HOST,
+        port=settings.PORT,
+        reload=settings.DEBUG,
+        log_level="info"
+    )
